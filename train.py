@@ -133,10 +133,28 @@ if __name__ == "__main__":
         print(f"binary classification")
         main_fun = train_val_test_binary_class
 
+    # 检查是否有最新检查点
+    last_ckpt_path = os.path.join(checkpoint_path, "last.pth")
+    start_epoch = 1
+    if os.path.exists(last_ckpt_path):
+        print(f"检测到检查点: {last_ckpt_path}, 正在加载...")
+        checkpoint = torch.load(last_ckpt_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        if 'optimizer_state_dict' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint.get('epoch', 1) + 1
+            print(f"已加载模型和优化器，恢复到 epoch {start_epoch}")
+        else:
+            print("检查点无优化器信息，优化器已重新初始化")
+            optimizer = init_optimizer(args, model)
+            start_epoch = checkpoint.get('epoch', 1) + 1
+    else:
+        print("未检测到检查点，将从头开始训练")
+
     # training
     best_auc = 0
     best_epoch = 0
-    for epoch in range(1, args.epoch + 1):
+    for epoch in range(start_epoch, args.epoch + 1):
         scheduler.step()
 
         train_auc = main_fun("train", epoch, model, train_loader, optimizer, train_recoder, writer, args.merge_method)
@@ -147,12 +165,12 @@ if __name__ == "__main__":
         if val_auc > best_auc:
             best_auc = val_auc
             best_epoch = epoch
-            save_checkpoint(model, os.path.join(checkpoint_path, "best.pth"))
+            save_checkpoint(model, optimizer, epoch, os.path.join(checkpoint_path, "best.pth"))
 
         # save model
         if epoch % args.save_epoch_interval == 0:
-            save_checkpoint(model, os.path.join(checkpoint_path, f"{epoch}.pth"))
-            save_checkpoint(model, os.path.join(checkpoint_path, f"last.pth"))
+            save_checkpoint(model, optimizer, epoch, os.path.join(checkpoint_path, f"{epoch}.pth"))
+            save_checkpoint(model, optimizer, epoch, os.path.join(checkpoint_path, "last.pth"))
 
         print("-" * 120)
 

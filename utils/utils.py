@@ -94,9 +94,22 @@ def compute_auc(label_list, score_list, multi_class="raise"):
     return auc
 
 
-def save_checkpoint(model, save_path):
-    torch.save(model.state_dict(), save_path)
-    print(f"save {save_path}")
+def save_checkpoint(model, optimizer, epoch, save_path):
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'epoch': epoch
+    }, save_path)
+    print(f"Checkpoint saved to {save_path}")
+
+
+def load_checkpoint(model, optimizer, load_path):
+    checkpoint = torch.load(load_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint.get('epoch', 0)
+    print(f"Checkpoint loaded from {load_path}, epoch={epoch}")
+    return epoch
 
 
 def train_val_test_binary_class(task_type, epoch, model, data_loader, optimizer, recoder, writer, merge_method):
